@@ -65,7 +65,6 @@ public class TimeWindowBackendListenerClient extends AbstractBackendListenerClie
         } catch (Throwable e) {
             LOGGER.error(e.getMessage());
         }
-
         batch.clear();
     }
 
@@ -120,16 +119,19 @@ public class TimeWindowBackendListenerClient extends AbstractBackendListenerClie
 
     private void addStatisticToSend(Statistic statistic) {
         long time = TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+        graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.count", String.valueOf(statistic.getTotal()));
         if (statistic.getTotal() > 0) {
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.min", String.valueOf(statistic.getAllMinTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.max", String.valueOf(statistic.getAllMaxTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.mean", String.valueOf(statistic.getAllMean()));
         }
+        graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.count", String.valueOf(statistic.getSuccesses()));
         if (statistic.getSuccesses() > 0) {
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.min", String.valueOf(statistic.getOkMinTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.max", String.valueOf(statistic.getOkMaxTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.mean", String.valueOf(statistic.getOkMean()));
         }
+        graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.count", String.valueOf(statistic.getFailures()));
         if (statistic.getFailures() > 0) {
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.min", String.valueOf(statistic.getKoMinTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.max", String.valueOf(statistic.getKoMaxTime()));

@@ -11,16 +11,22 @@ import static org.apache.commons.math3.stat.descriptive.DescriptiveStatistics.IN
 public class BatchStatistic implements Statistic {
     private static int failures;
     private static int successes;
-    private static DescriptiveStatistics okStatistic = infiniteDescriptiveStatistics();
-    private static DescriptiveStatistics failStatistic = infiniteDescriptiveStatistics();
-    private static DescriptiveStatistics allStatistic = infiniteDescriptiveStatistics();
+    private static DescriptiveStatistics okStatistic;
+    private static DescriptiveStatistics failStatistic;
+    private static DescriptiveStatistics allStatistic;
+
 
     private BatchStatistic(Collection<SampleResult> batch) {
+        successes = 0;
+        failures = 0;
+        okStatistic = infiniteDescriptiveStatistics();
+        failStatistic = infiniteDescriptiveStatistics();
+        allStatistic = infiniteDescriptiveStatistics();
         for (SampleResult result : batch) {
             if (result.isSuccessful()) {
-                successes += result.getSampleCount() - result.getErrorCount();
+                successes++;
             } else {
-                failures += result.getErrorCount();
+                failures++;
             }
             long time = result.getTime();
             allStatistic.addValue(time);
