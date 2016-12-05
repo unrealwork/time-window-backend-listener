@@ -2,6 +2,20 @@
 The alternative for standart Graphite Backend Listener that apply only metrics size sliding windows.
 The listener send statistics about samplers that collected for all metrics in time window.
 
+
+## Installation
+
+1. Download jar file from release page
+2. Copy the file to `$JMETER_HOME/lib/ext/` folder
+3. Restart Jmeter if it is running
+
+## Usage
+
+1. Add Backend Listener to your Test plan
+2. Select Backend Listener Implementation as `org.apache.jmeter.visualizers.backend.graphite.TimeWindowBackendListenerClient` 
+3. Configure it.
+
+
 ## Configuration
 
 ### Properties
