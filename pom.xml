@@ -7,6 +7,17 @@
     <groupId>time-window-backend-listener</groupId>
     <artifactId>time-window-backend-listener</artifactId>
     <version>0.0.1</version>
+    <developers>
+        <developer>
+            <email>unrealwork@gmail.com</email>
+            <name>Igor Shmagrinskiy</name>
+            <organization>axibase</organization>
+            <organizationUrl>https://axibase.com</organizationUrl>
+        </developer>
+    </developers>
+    <scm>
+        <url>https://github.com/unrealwork/time-window-backend-listener</url>
+    </scm>
     <build>
         <plugins>
             <plugin>
