@@ -41,7 +41,7 @@ public class TimeWindowBackendListenerClient extends AbstractBackendListenerClie
     private static final String SEPARATOR = ";";
 
     private List<SampleResult> batch = new ArrayList<>();
-    private Integer sliding_window_size = JMeterUtils.getPropDefault("backend_time_window", 15);
+    private Integer sliding_window_size = JMeterUtils.getPropDefault("backend_time_window_size", 15);
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> timerHandle;
     private GraphiteMetricsSender graphiteMetricsManager;
