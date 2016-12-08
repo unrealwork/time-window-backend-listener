@@ -23,25 +23,26 @@ import java.util.concurrent.TimeUnit;
 
 
 public class TimeWindowBackendListenerClient extends AbstractBackendListenerClient implements Runnable {
+    //User properties
+    private static final Integer WINDOW_SIZE = JMeterUtils.getPropDefault("backend_time_window_size", 15);
+    private static final Integer START_COUNT = JMeterUtils.getPropDefault("backend_time_window_start_count", 4);
+    //- Argument names
     private static final String GRAPHITE_METRICS_SENDER = "graphiteMetricsSender"; //$NON-NLS-1$
     private static final String GRAPHITE_HOST = "graphiteHost"; //$NON-NLS-1$
     private static final String GRAPHITE_PORT = "graphitePort"; //$NON-NLS-1$
     private static final String ROOT_METRICS_PREFIX = "rootMetricsPrefix"; //$NON-NLS-1$
     private static final String PERCENTILES = "percentiles"; //$NON-NLS-1$
-
-    //- Argument names
+    //Argument values
     private static final int DEFAULT_PLAINTEXT_PROTOCOL_PORT = 2003;
     private static final String ALL_CONTEXT_NAME = "all";
     private static final Logger LOGGER = LoggingManager.getLoggerForClass();
     private static final String DEFAULT_METRICS_PREFIX = "jmeter."; //$NON-NLS-1$
     private static final String DEFAULT_PERCENTILES = "90;95;99";
 
-
     private static final int MAX_POOL_SIZE = 1;
     private static final String SEPARATOR = ";";
-
+    private Integer count = 0;
     private List<SampleResult> batch = new ArrayList<>();
-    private Integer sliding_window_size = JMeterUtils.getPropDefault("backend_time_window_size", 15);
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> timerHandle;
     private GraphiteMetricsSender graphiteMetricsManager;
@@ -51,21 +52,25 @@ public class TimeWindowBackendListenerClient extends AbstractBackendListenerClie
     private String graphiteHost;
 
     public TimeWindowBackendListenerClient() {
+        count = 0;
     }
 
     private void sendMetrics() {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(String.format("Sending statistics about %d results", batch.size()));
-        }
+        count++;
         try {
-            Statistic batchStatistic = BatchStatistic.getStatistic(batch);
-            addStatisticToSend(batchStatistic);
-            graphiteMetricsManager.writeAndSendMetrics();
-            LOGGER.info(String.format("Sending statistics about %d results", batch.size()));
+            if (count >= START_COUNT) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(String.format("Sending statistics about %d results", batch.size()));
+                }
+                Statistic batchStatistic = BatchStatistic.getStatistic(batch);
+                addStatisticToSend(batchStatistic);
+                graphiteMetricsManager.writeAndSendMetrics();
+            }
         } catch (Throwable e) {
             LOGGER.error(e.getMessage());
+        } finally {
+            batch.clear();
         }
-        batch.clear();
     }
 
     @Override
@@ -101,7 +106,7 @@ public class TimeWindowBackendListenerClient extends AbstractBackendListenerClie
         }
 
         scheduler = Executors.newScheduledThreadPool(MAX_POOL_SIZE);
-        this.timerHandle = scheduler.scheduleAtFixedRate(this, sliding_window_size, sliding_window_size, TimeUnit.SECONDS);
+        this.timerHandle = scheduler.scheduleAtFixedRate(this, WINDOW_SIZE, WINDOW_SIZE, TimeUnit.SECONDS);
     }
 
     @Override
@@ -119,24 +124,25 @@ public class TimeWindowBackendListenerClient extends AbstractBackendListenerClie
 
     private void addStatisticToSend(Statistic statistic) {
         long time = TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-        graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.count", String.valueOf(statistic.getTotal()));
         if (statistic.getTotal() > 0) {
+            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.count", String.valueOf(statistic.getTotal()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.min", String.valueOf(statistic.getAllMinTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.max", String.valueOf(statistic.getAllMaxTime()));
             graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "all.mean", String.valueOf(statistic.getAllMean()));
+            if (statistic.getSuccesses() > 0) {
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.count", String.valueOf(statistic.getSuccesses()));
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.min", String.valueOf(statistic.getOkMinTime()));
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.max", String.valueOf(statistic.getOkMaxTime()));
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.mean", String.valueOf(statistic.getOkMean()));
+            }
+            if (statistic.getFailures() > 0) {
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.count", String.valueOf(statistic.getFailures()));
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.min", String.valueOf(statistic.getKoMinTime()));
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.max", String.valueOf(statistic.getKoMaxTime()));
+                graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.mean", String.valueOf(statistic.getKoMean()));
+            }
         }
-        graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.count", String.valueOf(statistic.getSuccesses()));
-        if (statistic.getSuccesses() > 0) {
-            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.min", String.valueOf(statistic.getOkMinTime()));
-            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.max", String.valueOf(statistic.getOkMaxTime()));
-            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "ok.mean", String.valueOf(statistic.getOkMean()));
-        }
-        graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.count", String.valueOf(statistic.getFailures()));
-        if (statistic.getFailures() > 0) {
-            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.min", String.valueOf(statistic.getKoMinTime()));
-            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.max", String.valueOf(statistic.getKoMaxTime()));
-            graphiteMetricsManager.addMetric(time, ALL_CONTEXT_NAME, "fail.mean", String.valueOf(statistic.getKoMean()));
-        }
+
         for (Double value : percentilies) {
             DecimalFormat df = new DecimalFormat("###.#");
             if (statistic.getTotal() > 0) {
